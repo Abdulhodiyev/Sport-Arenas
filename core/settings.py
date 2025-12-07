@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config.DJANGO_SECRET_KEY
+SECRET_KEY = config.SECRET_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config.DEBUG
@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "drf_spectacular_sidecar",
+    "corsheaders",
 
     "apps.arenas",
     "apps.bookings",
@@ -91,6 +92,7 @@ SPECTACULAR_SETTINGS = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -121,16 +123,25 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': config.DB_NAME,
+#         'USER': config.DB_USER,
+#         'PASSWORD': config.DB_PASS,
+#         'HOST': config.DB_HOST,
+#         'PORT': config.DB_PORT,
+#     }
+# }
+
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config.DB_NAME,
-        'USER': config.DB_USER,
-        'PASSWORD': config.DB_PASS,
-        'HOST': config.DB_HOST,
-        'PORT': config.DB_PORT,
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
 
 
 # Password validation
@@ -183,3 +194,5 @@ CLICK_MERCHANT_USER_ID = "<YOUR_USER_ID>"
 CLICK_SECRET_KEY = "<YOUR_SECRET_KEY>"
 CLICK_SERVICE_ID = "<YOUR_SERVICE_ID>"
 CLICK_API_URL = "https://api.click.uz/v2/merchant/invoice/create"
+
+CORS_ALLOW_ALL_ORIGINS = True
