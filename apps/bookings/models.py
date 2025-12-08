@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -75,17 +77,14 @@ class Booking(models.Model):
 
         price = self.arena.prices.filter(day_type=day_type).first()
         if price:
-            hours = (
-                datetime.combine(self.date, self.end_time) -
-                datetime.combine(self.date, self.start_time)
-            ).seconds / 3600
+            # davomiylikni hisoblash
+            duration = (
+                    datetime.combine(self.date, self.end_time) -
+                    datetime.combine(self.date, self.start_time)
+            )
 
+            # float emas, Decimal bo‘lishi shart!
+            hours = Decimal(duration.total_seconds()) / Decimal(3600)
+
+            # narxni hisoblash (Decimal * Decimal)
             self.total_price = price.price_per_hour * hours
-
-    def save(self, *args, **kwargs):
-        self.clean()
-        self.calculate_price()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.arena.name} - {self.date} {self.start_time}-{self.end_time}"
