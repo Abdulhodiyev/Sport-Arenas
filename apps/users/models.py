@@ -4,8 +4,7 @@ from django.db import models
 
 class CustomUserManager(UserManager):
     def _create_user(self, username, password=None, **extra_fields):
-        # Default UserManager _create_user() wants `email`!
-        # So we must always pass email=None manually.
+        # Django default manager *always expects email*. We must force-set it:
         extra_fields.setdefault("email", None)
 
         user = self.model(username=username, **extra_fields)
@@ -29,7 +28,7 @@ class CustomUserManager(UserManager):
 
 
 class User(AbstractUser):
-    email = None  # completely remove email
+    email = None  # remove email field
 
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
@@ -44,7 +43,3 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-
-    @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}".strip()
