@@ -3,6 +3,16 @@ from django.db import models
 
 
 class CustomUserManager(UserManager):
+    def _create_user(self, username, password=None, **extra_fields):
+        # Default UserManager _create_user() wants `email`!
+        # So we must always pass email=None manually.
+        extra_fields.setdefault("email", None)
+
+        user = self.model(username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
     def create_superuser(self, username, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
@@ -13,12 +23,13 @@ class CustomUserManager(UserManager):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
 
-        # EMAIL removed — do not pass email at all
+        extra_fields.setdefault("email", None)
+
         return self._create_user(username=username, password=password, **extra_fields)
 
 
 class User(AbstractUser):
-    email = None  # completely remove email field
+    email = None  # completely remove email
 
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
