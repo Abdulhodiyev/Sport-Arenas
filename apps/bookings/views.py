@@ -26,7 +26,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         return Booking.objects.filter(user=user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save()
 
     # ------------- ACTIONS ------------- #
 

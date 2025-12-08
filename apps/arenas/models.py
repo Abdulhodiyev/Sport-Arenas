@@ -71,7 +71,7 @@ class WorkingHours(models.Model):
         return f"{self.get_day_of_week_display()} — {self.open_time} / {self.close_time}"
 
 
-class PriceTable(models.Model):
+class   PriceTable(models.Model):
     arena = models.ForeignKey(Arena, on_delete=models.CASCADE, related_name="prices")
     day_type = models.CharField(max_length=20, choices=[
         ("weekday", "Weekday"),
