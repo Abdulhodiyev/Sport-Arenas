@@ -3,6 +3,8 @@ from django.db import models
 
 
 class User(AbstractUser):
+    email = None
+
     # Qo‘shimcha maydonlar
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
