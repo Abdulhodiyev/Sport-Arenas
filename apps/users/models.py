@@ -3,9 +3,10 @@ from django.db import models
 
 
 class CustomUserManager(UserManager):
+
     def _create_user(self, username, password=None, **extra_fields):
-        # Django default manager *always expects email*. We must force-set it:
-        extra_fields.setdefault("email", None)
+        # Django avtomatik ravishda email yuboradi → Uni olib tashlaymiz
+        extra_fields.pop("email", None)
 
         user = self.model(username=username, **extra_fields)
         user.set_password(password)
@@ -17,18 +18,14 @@ class CustomUserManager(UserManager):
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
 
-        if extra_fields.get("is_staff") is not True:
-            raise ValueError("Superuser must have is_staff=True.")
-        if extra_fields.get("is_superuser") is not True:
-            raise ValueError("Superuser must have is_superuser=True.")
-
-        extra_fields.setdefault("email", None)
+        # create_superuser ham email yuboradi → olib tashlaymiz
+        extra_fields.pop("email", None)
 
         return self._create_user(username=username, password=password, **extra_fields)
 
 
 class User(AbstractUser):
-    email = None  # remove email field
+    email = None  # remove email field completely
 
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
