@@ -10,8 +10,9 @@ from .models import Payment, PaymentStatus
 from .serializers import PaymentCreateSerializer, PaymentSerializer
 
 # NOTE: provider integration functions (pseudo) — implement provider SDK / HTTP calls in services module.
-from .services import create_provider_payment, verify_provider_payment, refund_provider_payment, create_click_payment, \
-    verify_click_signature
+# at top of apps.payments.views
+from .services import create_click_payment, verify_provider_payment, refund_provider_payment, verify_click_signature
+
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -31,21 +32,27 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         payment = serializer.save()
-
-        # CALL CLICK API
         provider_resp = create_click_payment(payment)
-
         if provider_resp.get("provider_id"):
             payment.provider_transaction_id = provider_resp["provider_id"]
-            payment.metadata = provider_resp["metadata"]
-            payment.status = PaymentStatus.PENDING
+            payment.metadata = provider_resp.get("metadata", {})
+            payment.status = "pending"
             payment.save()
+            # If you want to include pay_url in response we can set it on serializer.context
+            self._last_pay_url = provider_resp.get("pay_url")
         else:
-            payment.status = PaymentStatus.FAILED
+            payment.status = "failed"
             payment.metadata = provider_resp
             payment.save()
-
         return payment
+
+    def create(self, request, *args, **kwargs):
+        resp = super().create(request, *args, **kwargs)
+        # attach pay_url if available
+        pay_url = getattr(self, "_last_pay_url", None)
+        if pay_url:
+            resp.data["pay_url"] = pay_url
+        return resp
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
     def refund(self, request, pk=None):

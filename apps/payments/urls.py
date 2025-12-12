@@ -1,12 +1,17 @@
-from rest_framework.routers import DefaultRouter
+# core/urls.py (yoki project router)
+from django.http import HttpResponse
 from django.urls import path, include
-from .views import PaymentViewSet, payment_webhook, click_webhook
+from apps.payments.views import click_webhook, payment_webhook
+from rest_framework.routers import DefaultRouter
+from apps.payments.views import PaymentViewSet
 
 router = DefaultRouter()
-router.register("payments", PaymentViewSet)
+router.register(r'payments', PaymentViewSet, basename='payments')
 
 urlpatterns = [
-    path("", include(router.urls)),
-    path("webhook/", payment_webhook, name="payments-webhook"),
-    path("webhook/click/", click_webhook),
+    path('api/', include(router.urls)),
+    path('api/payments/webhook/', payment_webhook, name='payment-webhook'),
+    path('api/payments/click-webhook/', click_webhook, name='click-webhook'),
+    # optional: fake pay page for manual simulation
+    path('api/payments/fake-pay/<int:payment_id>/', lambda r, payment_id: HttpResponse("fake pay page")),
 ]

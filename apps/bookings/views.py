@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -75,3 +77,65 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         data = BookingSerializer(bookings, many=True).data
         return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="free_slots/(?P<arena_id>[^/.]+)")
+    def free_slots(self, request, arena_id=None):
+        """
+        Berilgan arena va sana uchun bo'sh vaqtlarni qaytaradi.
+        """
+        date_str = request.query_params.get("date")
+        if not date_str:
+            return Response({"error": "date parametri majburiy. Masalan: ?date=2025-12-12"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except:
+            return Response({"error": "date formati noto'g'ri. YYYY-MM-DD bo'lishi kerak."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Arena olish
+        from apps.arenas.models import Arena, WorkingHours
+        try:
+            arena = Arena.objects.get(id=arena_id)
+        except Arena.DoesNotExist:
+            return Response({"error": "Arena topilmadi."}, status=404)
+
+        weekday = date_obj.weekday()
+        working_hours = arena.working_hours.filter(day_of_week=weekday).first()
+
+        if not working_hours:
+            return Response({
+                "date": date_str,
+                "free_slots": [],
+                "message": "Bu kunda arena ishlamaydi."
+            })
+
+        open_time = working_hours.open_time
+        close_time = working_hours.close_time
+
+        # Band bookinglar
+        bookings = arena.bookings.filter(
+            date=date_obj,
+            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED]
+        ).order_by("start_time")
+
+        # --- BO'SH INTERVALLARNI HISOBLASH --- #
+        free_slots = []
+
+        current_start = open_time
+
+        for b in bookings:
+            if current_start < b.start_time:
+                free_slots.append([str(current_start), str(b.start_time)])
+            current_start = max(current_start, b.end_time)
+
+        # bandlar tugagandan keyin oxirgi segment
+        if current_start < close_time:
+            free_slots.append([str(current_start), str(close_time)])
+
+        return Response({
+            "date": date_str,
+            "working_hours": [str(open_time), str(close_time)],
+            "free_slots": free_slots
+        })

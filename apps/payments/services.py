@@ -1,91 +1,61 @@
-# Bu yerda haqiqiy provider API'lariga HTTP so'rov yuboriladi.
-# Quyida faqat struktura ko'rsatilgan, sizning credentials va haqiqiy endpoint'larni o'rnating.
+# apps/payments/services.py
+import uuid
+from typing import Dict, Any
 
-import requests
-from django.conf import settings
+# NOTE: In real integration, you do HTTP requests to Click/Payme and verify signatures.
+# Here we simulate provider behaviour.
 
-def create_provider_payment(payment):
+def create_click_payment(payment) -> Dict[str, Any]:
     """
-    Yaratuvchi funktsiya: providerga so'rov yuboradi va checkout link / transaction_id qaytaradi.
+    Simulate creating a payment at provider.
+    Return dict with 'provider_id', 'pay_url', 'metadata'.
     """
-    # Misol: Click / Payme API integration — implement as needed.
-    # Return example:
-    return {
-        "provider_id": f"prov_{payment.id}",
-        "checkout_url": f"https://provider/pay/{payment.id}",
-        "metadata": {"raw": "provider_create_response"}
+    provider_id = str(uuid.uuid4())
+    # In real life pay_url is a provider page. For testing we'll provide a fake callback URL
+    # that frontend can hit or you can call directly.
+    pay_url = f"/api/payments/fake-pay-page/{payment.id}/?provider_id={provider_id}"
+    metadata = {
+        "fake": True,
+        "intent": "click_simulation"
     }
+    return {"provider_id": provider_id, "pay_url": pay_url, "metadata": metadata}
 
-def verify_provider_payment(payload):
+
+def verify_provider_payment(payload: dict) -> dict:
     """
-    Webhook payloadni tekshirish: signature, fields va status ni aniqlash.
-    Return dict: {"valid": True/False, "provider_id": "...", "status": "success"/"failure"}
+    Simulate verifying provider payload.
+    Expect payload contain provider_id or merchant_trans_id, status.
+    Return dict: {'valid': True/False, 'provider_id': ..., 'status': 'success'/'failed'}
     """
-    # Implement signature check per provider
-    # Example stub:
-    try:
-        provider_id = payload.get("order_id") or payload.get("transaction_id")
-        provider_status = payload.get("status") or payload.get("state")
-        mapped_status = "success" if provider_status in ["completed", "success", "paid"] else "failure"
-        return {"valid": True, "provider_id": provider_id, "status": mapped_status}
-    except Exception:
+    provider_id = payload.get("provider_id") or payload.get("transaction_id") or payload.get("merchant_trans_id")
+    status = payload.get("status") or payload.get("error_status") or payload.get("error")
+    # For fake provider, accept everything that has provider_id
+    if not provider_id:
         return {"valid": False}
 
-def refund_provider_payment(payment):
-    """
-    Initiate refund request to provider. Return {"success": True/False, ...}
-    """
-    # Example stub:
-    return {"success": True, "provider_ref": f"refund_{payment.id}"}
-
-import requests
-from django.conf import settings
-
-def create_click_payment(payment):
-    payload = {
-        "merchant_id": settings.CLICK_MERCHANT_ID,
-        "service_id": settings.CLICK_SERVICE_ID,
-        "amount": float(payment.amount),
-        "transaction_param": str(payment.id),
-        "return_url": "https://your-domain.com/payments/success",
-        "card_type": "uzcard",
-    }
-
-    response = requests.post(settings.CLICK_API_URL, json=payload)
-    data = response.json()
-
-    # sample response:
-    # {
-    #   "error": 0,
-    #   "error_note": "Success",
-    #   "invoice_id": 12345,
-    #   "merchant_trans_id": "abc",
-    #   "payment_url": "https://my.click.uz/services/pay/?invoice_id=12345"
-    # }
-
-    if data.get("error") == 0:
-        return {
-            "provider_id": data["invoice_id"],
-            "checkout_url": data["payment_url"],
-            "metadata": data
-        }
+    # Interpret status: provider might send error="0" for success (Click)
+    if status in (0, "0", "success", "ok", "paid"):
+        mapped = "success"
+    elif status in (1, "1", "failed", "error"):
+        mapped = "failed"
     else:
-        return {"error": data}
+        # default: success if explicit success token present
+        mapped = "success" if payload.get("simulate_success") else "failed"
+    return {"valid": True, "provider_id": str(provider_id), "status": mapped}
 
-import hashlib
 
-def verify_click_signature(payload):
-    sign_string = (
-        payload["click_trans_id"] +
-        settings.CLICK_SERVICE_ID +
-        settings.CLICK_MERCHANT_USER_ID +
-        payload["merchant_trans_id"] +
-        payload["amount"] +
-        payload["action"] +
-        payload["sign_time"] +
-        settings.CLICK_SECRET_KEY
-    )
+def refund_provider_payment(payment) -> dict:
+    """
+    Simulate refund call to provider.
+    """
+    # Fake immediate success
+    return {"success": True, "provider_refund_id": str(uuid.uuid4())}
 
-    calculated = hashlib.md5(sign_string.encode()).hexdigest()
 
-    return calculated == payload["sign_string"]
+def verify_click_signature(payload: dict) -> bool:
+    """
+    Fake signature check for Click webhook.
+    If payload contains key 'fake_signature' == 'ok' accept it.
+    """
+    sig = payload.get("fake_signature")
+    return sig == "ok"
